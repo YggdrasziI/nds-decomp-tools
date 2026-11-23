@@ -8,7 +8,6 @@ from pathlib import Path
 import argparse
 import re
 import tempfile
-import tomllib
 
 parser = argparse.ArgumentParser(description="Generates a context for decomp.me")
 parser.add_argument('file', help="Input file to preprocess")
@@ -19,29 +18,12 @@ parser.add_argument('-v', action=argparse.BooleanOptionalAction, dest='verbose',
 parser.add_argument('-D', action='append', dest='defines', default=[], metavar='MACRO', help='Define a macro for the preprocessor (e.g. -D REGION_USA)')
 args = parser.parse_args()
 
-def find_root() -> Path:
-    '''Project root: the nearest directory holding a decomp.toml, from the current one up.'''
-    here = Path.cwd().resolve()
-    for d in (here, *here.parents):
-        if (d / "decomp.toml").is_file():
-            return d
-    sys.exit("decomp.toml not found (run from inside the project)")
+import nds_config  # noqa: E402
 
-root_dir = find_root()
+root_dir = nds_config.ROOT
 
-# Include directories, relative to the project root: [m2ctx] include_dirs of decomp.toml
-DEFAULT_INCLUDE_DIRS = [
-    'include',
-    'libs/c/include',
-    'libs/cpp/include',
-    'libs/cri/include',
-    'libs/nitro/include',
-    'libs/runtime/include',
-]
-config = tomllib.loads((root_dir / "decomp.toml").read_text(encoding="utf-8"))
-include_dirs = config.get("m2ctx", {}).get("include_dirs", DEFAULT_INCLUDE_DIRS)
-
-CXX_FLAGS = ['-nostdinc', *[f'-I{d}' for d in include_dirs]]
+# Include directories, relative to the project root: [nds] include_dirs of decomp.toml
+CXX_FLAGS = ['-nostdinc', *[f'-I{d}' for d in nds_config.include_dirs()]]
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
